@@ -17,9 +17,11 @@ def suppress_relu(model):
     return model
 
 # Simulate gradient suppression attack
-def gradient_suppression(clients_dataloaders, input_shape, num_classes, target=0, epochs=1, device='cpu'):
+def gradient_suppression(clients_dataloaders, input_shape, num_classes, trained_model_state_dict=None, target=0, epochs=1, device='cpu'):
     # Initialize global model
     global_model = Model(input_shape, num_classes).to(device)
+    if trained_model_state_dict != None:
+        global_model.load_state_dict(trained_model_state_dict)
     criterion = torch.nn.CrossEntropyLoss()
 
     # compute altered model weights
@@ -51,4 +53,4 @@ def gradient_suppression(clients_dataloaders, input_shape, num_classes, target=0
     print(f"Fraction of exactly equal params: {frac_equal:.4f}")
     print(f"Average cosine similarity: {avg_cos_sim:.4f}")
 
-    return global_model, avg_state_dict, local_state_dicts
+    return global_model, local_state_dicts
