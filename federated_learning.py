@@ -47,5 +47,5 @@ def federated_learning(clients_dataloaders, input_shape, num_classes, rounds=5, 
         avg_state_dict = federated_avg(local_state_dicts)
         global_model.load_state_dict(avg_state_dict)
 
-    return global_model
+    return global_model, avg_state_dict, local_state_dicts
 
