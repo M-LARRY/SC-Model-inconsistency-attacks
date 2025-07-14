@@ -1,13 +1,19 @@
 import copy
 import torch
-from model import Model
+from model import Model1, Model2
 from torch.utils.data import DataLoader, Dataset
 from federated_learning import *
 from utils import *
 
 # Suppress ReLU layers
-def suppress_relu(model):
-    for layer_name in ['conv1', 'conv2', 'conv3']:
+def suppress_relu(model, model_type):
+    if model_type == 1:
+        layers = ['conv1', 'conv2', 'conv3']
+    elif model_type == 2:
+        layers = ['conv1', 'conv2', 'fc1', 'fc2']
+    else:
+        print('Unknown model. Unable to suppress ReLU.')
+    for layer_name in layers:
         layer = getattr(model, layer_name, None)
         if layer is not None:
             if hasattr(layer, 'weight') and layer.weight is not None:
@@ -17,16 +23,22 @@ def suppress_relu(model):
     return model
 
 # Simulate gradient suppression attack
-def gradient_suppression(clients_dataloaders, input_shape, num_classes, trained_model_state_dict=None, target=0, epochs=1, device='cpu'):
+def gradient_suppression(clients_dataloaders, input_shape, num_classes, trained_model_state_dict=None, target=0, epochs=1, device='cpu', model=1):
     # Initialize global model
-    global_model = Model(input_shape, num_classes).to(device)
+    if model == 1:
+        global_model = Model1(input_shape, num_classes).to(device)
+    elif model == 2:
+        global_model = Model2(input_shape, num_classes).to(device)
+    else:
+        print('Unknown model. Attack not started.')
+        return None, None
     if trained_model_state_dict != None:
         global_model.load_state_dict(trained_model_state_dict)
     criterion = torch.nn.CrossEntropyLoss()
 
     # compute altered model weights
     altered_model = copy.deepcopy(global_model)
-    altered_model = suppress_relu(altered_model)
+    altered_model = suppress_relu(altered_model, model_type=model)
 
     # Send global model to target, altered model to remainig clients. clients train locally
     local_state_dicts = []

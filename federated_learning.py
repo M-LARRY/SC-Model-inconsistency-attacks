@@ -1,6 +1,6 @@
 import copy
 import torch
-from model import Model
+from model import Model1, Model2
 from torch.utils.data import DataLoader, Dataset
 
 # Client update function (local training)
@@ -27,9 +27,15 @@ def federated_avg(state_dicts):
     return avg_state_dict
 
 # Simulate federated learning process
-def federated_learning(clients_dataloaders, input_shape, num_classes, rounds=5, epochs=1, device='cpu'):
+def federated_learning(clients_dataloaders, input_shape, num_classes, rounds=5, epochs=1, device='cpu', model=1):
     # Initialize global model
-    global_model = Model(input_shape, num_classes).to(device)
+    if model == 1:
+        global_model = Model1(input_shape, num_classes).to(device)
+    elif model == 2:
+        global_model = Model2(input_shape, num_classes).to(device)
+    else:
+        print('Unknown model. Simulation not started.')
+        return None, None
     criterion = torch.nn.CrossEntropyLoss()
 
     for round in range(rounds):
