@@ -23,7 +23,7 @@ def suppress_relu(model, model_type):
     return model
 
 # Simulate gradient suppression attack
-def gradient_suppression(clients_dataloaders, input_shape, num_classes, trained_model_state_dict=None, target=0, epochs=1, device='cpu', model=1):
+def gradient_suppression(clients_dataloaders, input_shape, num_classes, trained_model_state_dict=None, target=0, criterion=torch.nn.CrossEntropyLoss(), lr=0.001, epochs=1, device='cpu', model=1):
     # Initialize global model
     if model == 1:
         global_model = Model1(input_shape, num_classes).to(device)
@@ -34,7 +34,6 @@ def gradient_suppression(clients_dataloaders, input_shape, num_classes, trained_
         return None, None
     if trained_model_state_dict != None:
         global_model.load_state_dict(trained_model_state_dict)
-    criterion = torch.nn.CrossEntropyLoss()
 
     # compute altered model weights
     altered_model = copy.deepcopy(global_model)
@@ -48,7 +47,7 @@ def gradient_suppression(clients_dataloaders, input_shape, num_classes, trained_
             local_model = copy.deepcopy(global_model)
         else:
             local_model = copy.deepcopy(altered_model)
-        optimizer = torch.optim.SGD(local_model.parameters(), lr=0.01)
+        optimizer = torch.optim.SGD(local_model.parameters(), lr=lr)
         local_state = local_train(local_model, dataloader, criterion, optimizer, epochs, device)
         local_state_dicts.append(local_state)
 
@@ -57,12 +56,10 @@ def gradient_suppression(clients_dataloaders, input_shape, num_classes, trained_
     global_model.load_state_dict(avg_state_dict)
 
     mse = state_dicts_mse(local_state_dicts[target], avg_state_dict)
-    frac_equal = state_dicts_fraction_equal_params(local_state_dicts[target], avg_state_dict)
     avg_cos_sim = state_dicts_average_cosine_similarity(local_state_dicts[target], avg_state_dict)
 
     print("Comparing target update with global update:")
     print(f"Average MSE: {mse:.4f}")
-    print(f"Fraction of exactly equal params: {frac_equal:.4f}")
     print(f"Average cosine similarity: {avg_cos_sim:.4f}")
 
     return global_model, local_state_dicts

@@ -27,7 +27,7 @@ def federated_avg(state_dicts):
     return avg_state_dict
 
 # Simulate federated learning process
-def federated_learning(clients_dataloaders, input_shape, num_classes, rounds=5, epochs=1, device='cpu', model=1):
+def federated_learning(clients_dataloaders, input_shape, num_classes, criterion=torch.nn.CrossEntropyLoss(), lr=0.001, rounds=5, epochs=1, device='cpu', model=1):
     # Initialize global model
     if model == 1:
         global_model = Model1(input_shape, num_classes).to(device)
@@ -36,7 +36,6 @@ def federated_learning(clients_dataloaders, input_shape, num_classes, rounds=5, 
     else:
         print('Unknown model. Simulation not started.')
         return None, None
-    criterion = torch.nn.CrossEntropyLoss()
 
     for round in range(rounds):
         print(f"Round {round + 1}")
@@ -45,7 +44,7 @@ def federated_learning(clients_dataloaders, input_shape, num_classes, rounds=5, 
         local_state_dicts = []
         for dataloader in clients_dataloaders:
             local_model = copy.deepcopy(global_model)
-            optimizer = torch.optim.SGD(local_model.parameters(), lr=0.01)
+            optimizer = torch.optim.SGD(local_model.parameters(), lr=lr)
             local_state = local_train(local_model, dataloader, criterion, optimizer, epochs, device)
             local_state_dicts.append(local_state)
 
