@@ -37,9 +37,13 @@ def state_dicts_average_cosine_similarity(sd1, sd2):
             cos_sims.append(cos_sim)
     return sum(cos_sims) / len(cos_sims) if cos_sims else None
 
-
 def state_dicts_cosine_similarity(sd1, sd2):
     x = dict_to_tensor(sd1)
     y = dict_to_tensor(sd2)
     cos_sim = F.cosine_similarity(x, y, dim=0)
     return cos_sim
+
+def compare_state_dicts(sd1, sd2):
+    sd1 = dict_to_tensor(sd1)
+    sd2 = dict_to_tensor(sd2)
+    return F.cosine_similarity(sd1, sd2, dim=0)

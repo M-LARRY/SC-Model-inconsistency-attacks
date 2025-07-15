@@ -45,10 +45,12 @@ def gradient_suppression(clients_dataloaders, input_shape, num_classes, trained_
         if dataloader == clients_dataloaders[target]:
             print("target is client", target)
             local_model = copy.deepcopy(global_model)
+            optimizer = torch.optim.SGD(local_model.parameters(), lr=lr)
+            local_state = local_train_debug(local_model, dataloader, criterion, lr, device)
         else:
             local_model = copy.deepcopy(altered_model)
-        optimizer = torch.optim.SGD(local_model.parameters(), lr=lr)
-        local_state = local_train(local_model, dataloader, criterion, optimizer, epochs, device)
+            optimizer = torch.optim.SGD(local_model.parameters(), lr=lr)
+            local_state = local_train(local_model, dataloader, criterion, optimizer, epochs, device)
         local_state_dicts.append(local_state)
 
     # Aggregate updates from clients

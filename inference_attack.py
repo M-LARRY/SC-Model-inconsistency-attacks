@@ -5,8 +5,6 @@ from utils import *
 from torch import nn
 from numpy.linalg import norm
 
-
-
 def elementwise_diff_state_dicts(state_dict1, state_dict2, learning_rate):
     diff_dict = {}
 
