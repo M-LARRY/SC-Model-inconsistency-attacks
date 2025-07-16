@@ -5,6 +5,13 @@ from utils import *
 from torch import nn
 from numpy.linalg import norm
 
+def remove_layers(sd, layers_to_remove):
+    res = {}
+    for key in sd.keys():
+        if key not in layers_to_remove:
+            res[key] = sd[key]
+    return res
+
 def estimate_gradient(state_dict1, state_dict2, learning_rate):
     diff_dict = {}
 
@@ -113,3 +120,9 @@ def evaluate_model(model, test_loader, criterion, device='cuda'):
     print(f"Test Loss: {avg_loss:.4f} | Cosine Similarity: {avg_cosine_similarity:.4f}")
 
     return all_preds
+
+def state_dict_scale(sd, n):
+    ret = {}
+    for key in sd.keys():
+        ret[key] = sd[key] * n
+    return ret
