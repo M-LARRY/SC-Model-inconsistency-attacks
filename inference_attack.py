@@ -68,6 +68,7 @@ def train_grad_classifier(model, train_loader, test_loader, criterion, num_epoch
             running_loss += loss.item() * x_batch.size(0)
 
             # Accuracy
+            print(outputs)
             #preds = torch.argmax(outputs, dim=1)
             #correct += (preds == y_batch).sum().item()
             total += y_batch.size(0)
@@ -76,7 +77,7 @@ def train_grad_classifier(model, train_loader, test_loader, criterion, num_epoch
         accuracy = 0
         #accuracy = correct / total * 100
 
-        print(f"Epoch {epoch+1}/{num_epochs} | Loss: {avg_loss:.4f} | Accuracy: {accuracy:.2f}%")
+        # print(f"Epoch {epoch+1}/{num_epochs} | Loss: {avg_loss:.4f} | Accuracy: {accuracy:.2f}%")
         evaluate_model(model, test_loader, criterion, device)
         
 def evaluate_model(model, test_loader, criterion, device='cuda'):
@@ -126,3 +127,4 @@ def state_dict_scale(sd, n):
     for key in sd.keys():
         ret[key] = sd[key] * n
     return ret
+
