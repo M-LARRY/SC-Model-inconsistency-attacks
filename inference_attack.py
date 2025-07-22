@@ -12,6 +12,38 @@ def remove_layers(sd, layers_to_remove):
             res[key] = sd[key]
     return res
 
+def prob_to_prediction(inferred, num_preds):
+    inferred_copy = inferred.clone()
+    predictions = []
+
+    for i in range(num_preds):
+        temp_max = torch.argmax(inferred_copy)
+        predictions.append(int(temp_max))
+        inferred_copy[temp_max] = -inferred_copy[temp_max]
+    predictions.sort()
+    return predictions
+
+def compare_multihot(multi_1, multi_2):
+    cnt = 0
+    for i in range(len(multi_1)):
+        if multi_1[i] == multi_2[i]:
+            cnt += 1
+    return cnt / len(multi_1)
+
+def outputs_to_label(out, size):
+    res = []
+    for i in out:
+        i_pred = prob_to_prediction(i,size)
+        res.append(i_pred)
+    return res
+
+def normalize(batch):
+    for j in range(len(batch)):
+        den = sum(batch[j])
+        for i in range(len(batch[j])):
+            batch[j][i] = batch[j][i]/den
+    return batch
+
 def estimate_gradient(state_dict1, state_dict2, learning_rate):
     diff_dict = {}
 
@@ -44,9 +76,14 @@ def kl_div(p, q):
     # p, q are probability distributions (batch_size x classes)
     return nn.functional.kl_div(input=F.log_softmax(p, dim=1), target=q, reduction="batchmean")
 
-def train_grad_classifier(model, train_loader, test_loader, criterion, num_epochs=10, lr=1e-3, device='cuda'):
+def train_grad_classifier(model, train_loader, test_loader, criterion, batch_size_pretrained_model, num_epochs=10, lr=1e-3, device='cpu'):
     model = model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    history_training_accuracy = []
+    history_test_accuracy = []
+    history_training_loss = []
+    history_test_loss = []
 
     for epoch in range(num_epochs):
         model.train()
@@ -60,6 +97,8 @@ def train_grad_classifier(model, train_loader, test_loader, criterion, num_epoch
 
             optimizer.zero_grad()
             outputs = model(x_batch)  # raw logits
+            
+            y_batch = normalize(y_batch)
 
             loss = criterion(outputs, y_batch)
             loss.backward()
@@ -68,22 +107,34 @@ def train_grad_classifier(model, train_loader, test_loader, criterion, num_epoch
             running_loss += loss.item() * x_batch.size(0)
 
             # Accuracy
-            print(outputs)
-            #preds = torch.argmax(outputs, dim=1)
-            #correct += (preds == y_batch).sum().item()
+            outputs_labels = outputs_to_label(outputs, batch_size_pretrained_model)
+            y_batch_labels = outputs_to_label(y_batch, batch_size_pretrained_model)
+            for i in range(len(y_batch)):
+                correct += compare_multihot(y_batch_labels[i],outputs_labels[i])
+
             total += y_batch.size(0)
 
         avg_loss = running_loss / total
         accuracy = 0
-        #accuracy = correct / total * 100
+        accuracy = correct / total
 
-        # print(f"Epoch {epoch+1}/{num_epochs} | Loss: {avg_loss:.4f} | Accuracy: {accuracy:.2f}%")
-        evaluate_model(model, test_loader, criterion, device)
+        print(f"Epoch {epoch+1}/{num_epochs} | Loss: {avg_loss:.4f} | Accuracy: {accuracy:.2f}")
+
+        _, test_accuracy, test_loss = evaluate_model(model, test_loader, criterion, batch_size_pretrained_model, device)
+
+        history_training_accuracy.append(accuracy)
+        history_test_accuracy.append(test_accuracy)
+        history_training_loss.append(avg_loss)
+        history_test_loss.append(test_loss)
+    
+    return history_training_accuracy, history_test_accuracy, history_training_loss, history_test_loss
         
-def evaluate_model(model, test_loader, criterion, device='cuda'):
+def evaluate_model(model, test_loader, criterion, batch_size_pretrained_model, device='cpu'):
     model.eval()
     model.to(device)
 
+    correct = 0
+    total = 0
     total_loss = 0.0
     all_preds = []
     all_labels = []
@@ -93,6 +144,9 @@ def evaluate_model(model, test_loader, criterion, device='cuda'):
         for x_batch, y_batch in test_loader:
             x_batch = x_batch.to(device)
             y_batch = y_batch.to(device)
+
+            # normalize y_batch
+            y_batch = normalize(y_batch)
 
             outputs = model(x_batch)  # sigmoid output
             loss = criterion(outputs, y_batch)
@@ -112,15 +166,25 @@ def evaluate_model(model, test_loader, criterion, device='cuda'):
                 else:
                     cos_sim = np.dot(p, l) / (norm(p) * norm(l))
                     cosine_sims.append(cos_sim)
+            
+            # Accuracy
+            outputs_labels = outputs_to_label(outputs, batch_size_pretrained_model)
+            y_batch_labels = outputs_to_label(y_batch, batch_size_pretrained_model)
+            for i in range(len(y_batch)):
+                correct += compare_multihot(y_batch_labels[i],outputs_labels[i])
+
+            total += y_batch.size(0)
 
     avg_loss = total_loss / len(test_loader.dataset)
     all_preds = np.vstack(all_preds)
     all_labels = np.vstack(all_labels)
     avg_cosine_similarity = np.mean(cosine_sims)
+    accuracy = 0
+    accuracy = correct / total
 
-    print(f"Test Loss: {avg_loss:.4f} | Cosine Similarity: {avg_cosine_similarity:.4f}")
+    print(f"Test Loss: {avg_loss:.4f} | Cosine Similarity: {avg_cosine_similarity:.4f}, Test Accuracy: {accuracy:.4f}")
 
-    return all_preds
+    return all_preds, accuracy, avg_loss
 
 def state_dict_scale(sd, n):
     ret = {}
